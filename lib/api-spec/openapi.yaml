@@ -1,0 +1,290 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: DAMON Bot API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: bot
+    description: Bot status and control
+  - name: admins
+    description: Bot admin management
+  - name: cookie
+    description: Cookie management
+  - name: logs
+    description: Bot logs
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /bot/status:
+    get:
+      operationId: getBotStatus
+      tags: [bot]
+      summary: Get bot status
+      description: Returns bot connection status, uptime, and info
+      responses:
+        "200":
+          description: Bot status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotStatus"
+
+  /bot/reload:
+    post:
+      operationId: reloadBot
+      tags: [bot]
+      summary: Reload bot session
+      description: Hot-reloads the bot using current cookie without stopping the server
+      responses:
+        "200":
+          description: Reload triggered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+
+  /admins:
+    get:
+      operationId: listAdmins
+      tags: [admins]
+      summary: List all bot admins
+      responses:
+        "200":
+          description: List of admins
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Admin"
+    post:
+      operationId: addAdmin
+      tags: [admins]
+      summary: Add a bot admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminInput"
+      responses:
+        "201":
+          description: Admin added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Admin"
+        "409":
+          description: Already an admin
+
+  /admins/{uid}:
+    delete:
+      operationId: removeAdmin
+      tags: [admins]
+      summary: Remove a bot admin
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Admin removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "404":
+          description: Admin not found
+
+  /cookie:
+    get:
+      operationId: getCookie
+      tags: [cookie]
+      summary: Get current cookie info
+      description: Returns cookie status and masked preview
+      responses:
+        "200":
+          description: Cookie info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CookieInfo"
+    put:
+      operationId: updateCookie
+      tags: [cookie]
+      summary: Update bot cookie
+      description: Replaces the c3c JSON cookie and triggers hot-reload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CookieInput"
+      responses:
+        "200":
+          description: Cookie updated and bot reloading
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "400":
+          description: Invalid cookie format
+
+  /logs:
+    get:
+      operationId: getLogs
+      tags: [logs]
+      summary: Get recent bot logs
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        "200":
+          description: Recent log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LogEntry"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    BotStatus:
+      type: object
+      properties:
+        online:
+          type: boolean
+        uid:
+          type: ["string", "null"]
+        name:
+          type: ["string", "null"]
+        uptimeSeconds:
+          type: number
+        startedAt:
+          type: ["string", "null"]
+        connectionType:
+          type: ["string", "null"]
+        adminCount:
+          type: integer
+        cookieLoaded:
+          type: boolean
+      required:
+        - online
+        - uid
+        - name
+        - uptimeSeconds
+        - startedAt
+        - connectionType
+        - adminCount
+        - cookieLoaded
+
+    Admin:
+      type: object
+      properties:
+        uid:
+          type: string
+        name:
+          type: string
+        addedAt:
+          type: string
+      required:
+        - uid
+        - name
+        - addedAt
+
+    AdminInput:
+      type: object
+      properties:
+        uid:
+          type: string
+        name:
+          type: string
+      required:
+        - uid
+        - name
+
+    CookieInfo:
+      type: object
+      properties:
+        loaded:
+          type: boolean
+        preview:
+          type: ["string", "null"]
+        updatedAt:
+          type: ["string", "null"]
+      required:
+        - loaded
+        - preview
+        - updatedAt
+
+    CookieInput:
+      type: object
+      properties:
+        cookie:
+          type: string
+          description: c3c JSON cookie string (array of cookie objects)
+      required:
+        - cookie
+
+    LogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        level:
+          type: string
+        tag:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+      required:
+        - id
+        - level
+        - tag
+        - message
+        - timestamp
+
+    ActionResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+        - message
